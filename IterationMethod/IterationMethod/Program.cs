@@ -1,5 +1,7 @@
-﻿using System;
+﻿using ClosedXML.Excel;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace IterationMethod
@@ -14,7 +16,7 @@ namespace IterationMethod
             static int TotalUnits()
             {
                 return TOTAL_ADDITIONAL_UNITS + TOTAL_MAIN_UNITS;
-            }           
+            }
 
             decimal[] primaryExpenses = new[]
             {
@@ -26,11 +28,25 @@ namespace IterationMethod
 
             decimal[][] volumes = new decimal[][]
             {
-                new decimal[] { 0m,   110m, 55m,  60m,  450m, 350m},
-                new decimal[] { 360m, 0m,   0m,   200m, 300m, 800m},
-                new decimal[] { 200m, 58m,  0m,   100m, 120m, 100m},
-                new decimal[] { 0m,   0m,   0m,   0m,   87m,  40m},
+                new decimal[] { 0m,   110m, 55m, 60m,  450m, 350m },
+                new decimal[] { 360m, 0m,   0m,  200m, 300m, 800m },
+                new decimal[] { 200m, 58m,  0m,  100m, 120m, 100m },
+                new decimal[] { 0m,   0m,   0m,  0m,   87m,  40m },
             };
+
+            //decimal[] primaryExpenses = new[]
+            //{
+            //    20m,
+            //    80m,
+            //    50m,
+            //};
+
+            //decimal[][] volumes = new decimal[][]
+            //{
+            //    new decimal[] { 0m,   110m, 60, 100,  400,  },
+            //    new decimal[] { 200, 0m,   400,  1200, 200m,  },
+            //    new decimal[] { 50, 50,  0m,  300, 100,  },
+            //};
 
             decimal[][] structure = new decimal[TOTAL_ADDITIONAL_UNITS][];
             for (int i = 0; i < TOTAL_ADDITIONAL_UNITS; i++)
@@ -92,15 +108,64 @@ namespace IterationMethod
                 }
             }
 
-            foreach (var item in result)
+            using FileStream stream = File.Create("lab7.xlsx");
+            using var workbook = new XLWorkbook();           
+
+            const int horizontalShift = 2;    
+            const int deltaVerticalShift = 7;
+  
+            var verticalShift = 1;
+
+            var worksheet = workbook.Worksheets.Add("Data");
+            for (int i = 0; i < TOTAL_ADDITIONAL_UNITS; i++)
             {
-                foreach (var inner in item)
-                {
-                    Console.WriteLine(inner);
-                }
-                Console.WriteLine("==============");
+                worksheet.Cell(verticalShift, i + horizontalShift).Value 
+                    = $"Item {1+i}";
+                worksheet.Cell(1 + verticalShift, i + horizontalShift).Value
+                    = primaryExpenses[i].ToString();
             }
 
+            verticalShift += deltaVerticalShift;
+            Print(worksheet, Enumerable.Range(1, TOTAL_ADDITIONAL_UNITS).Select(i => $"Item{i}").ToArray(), volumes, horizontalShift, verticalShift, new[] { "Volumes" });
+
+            verticalShift += deltaVerticalShift;
+            Print(worksheet, Enumerable.Range(1, TOTAL_ADDITIONAL_UNITS).Select(i => $"Item{i}").ToArray(), structure, horizontalShift, verticalShift,new[] { "Structure" });
+
+            verticalShift += deltaVerticalShift;
+
+            for (int i = 0; i < xLog.Count; i++)
+            {
+                Print(worksheet, new[] { $"#{i}"}, new decimal[][] { xLog[i].Concat(deltasLog[i]).Concat(new[] { maxDeltaLog[i] }).ToArray() }, horizontalShift, verticalShift, null);
+                ++verticalShift;
+            }
+
+            verticalShift += deltaVerticalShift;
+            Print(worksheet, Enumerable.Range(1, TOTAL_ADDITIONAL_UNITS).Select(i => $"Item{i}").ToArray(), result, horizontalShift, verticalShift, new[] { "Result" });
+
+            workbook.SaveAs(stream);
+        }
+
+        static void Print(IXLWorksheet worksheet, string[] headers, decimal[][] values, int horizontalShift, int verticalShift, string[] mainHeader)
+        {
+            if (mainHeader != null)
+            {
+                for (int i = 0; i < mainHeader.Length; i++)
+                {
+                    worksheet.Cell(verticalShift - 1, horizontalShift - 1 + i).Value = mainHeader[i];
+                }
+            }
+
+            for (int i = 0; i < values.Length; i++)
+            {
+                worksheet.Cell(i + verticalShift, horizontalShift - 1).Value
+                           = headers[i];
+
+                for (int j = 0; j < values[i].Length; j++)
+                {
+                    worksheet.Cell(i + verticalShift, j + horizontalShift).Value
+                        = values[i][j].ToString();
+                }
+            }
         }
     }
 }
